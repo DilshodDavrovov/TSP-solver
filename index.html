@@ -19,6 +19,13 @@
 <canvas id="tsp" width="600" height="600"></canvas>
 
 <script>
+let cities = [];
+
+function generatePoints() {
+  cities = generateCities(50);
+  draw([], cities);
+}
+  
 function generateCities(n) {
   return Array.from({length: n}, () => ({
     x: Math.random() * 100,
@@ -200,11 +207,7 @@ function runACO() {
     `ACO длина маршрута: ${bestLen.toFixed(2)}`;
 }
 
-function generatePoints() {
-  cities = generateCities(50);
-  draw([], cities);
-}
-let cities = [];
+
 generatePoints();
 </script>
 
