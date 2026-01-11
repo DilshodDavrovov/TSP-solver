@@ -1,4 +1,12 @@
-const gpu = new GPU();
+function initGPU() {
+    try {
+        return new window.GPU.GPU();
+    } catch (e) {
+        return new GPU();
+    }
+}
+
+const gpu = initGPU();
 
 function solveTSP(distances,Ants=1000,courierCount=1,iterations=15,alpha=1,beta=5,evaporationRate=0.5) {
 
@@ -54,13 +62,13 @@ function solveTSP(distances,Ants=1000,courierCount=1,iterations=15,alpha=1,beta=
         pipeline: true,
         immutable: true
     });
-    const updateRoads = gpu.createKernel(function (pozitions,roads,cur_step,curNum,min,max) {
+    const updateRoads = gpu.createKernel(function (pozitions,roads,cur_step,curNum) {
         const Ants = this.constants.Ants;
         const ant   = this.thread.y;
         const step     = this.thread.x;
         const cur_ant = ant * curNum;
         let city    = roads[cur_ant][step];
-        if (step == cur_step && cur_ant >= min && cur_ant <= max) {
+        if (step == cur_step) {
             city = pozitions[ant];    
         };
         return city;
@@ -85,7 +93,7 @@ function solveTSP(distances,Ants=1000,courierCount=1,iterations=15,alpha=1,beta=
         const ant   = this.thread.x;
         const N     = this.constants.N;
         let length      = 0;
-        for (let step = 0; step < N-1; step++) {
+        for (let step = 0; step < N+1; step++) {
             const a = roads[ant][step]; 
             const b = roads[ant][step+1];
             length += distances[a][b];
@@ -129,9 +137,7 @@ function solveTSP(distances,Ants=1000,courierCount=1,iterations=15,alpha=1,beta=
 
             new_pozitions   = selectCity(pozitions,distances, pheromones,visited,curNum);
             new_visited     = updateVisited(new_pozitions,visited);
-            let min = 0;
-            let max = 99;
-            new_roads       = updateRoads(new_pozitions,roads,cur_step,curNum,min,max);
+            new_roads       = updateRoads(new_pozitions,roads,cur_step,curNum);
             if (!isFirst) {
                 pozitions.delete();
                 visited.delete();
@@ -157,7 +163,7 @@ function solveTSP(distances,Ants=1000,courierCount=1,iterations=15,alpha=1,beta=
         for (let ant = 0; ant < Ants; ant++) {
             const lengt = antlength[ant];
             const pheromoneContribution = 1000 / lengt;
-            for (let step = 0; step < N-1; step++) {
+            for (let step = 0; step < N+1; step++) {
                 const a = roads[ant][step]; 
                 const b = roads[ant][step+1];
                 pheromones[a][b] += pheromoneContribution;
@@ -166,25 +172,10 @@ function solveTSP(distances,Ants=1000,courierCount=1,iterations=15,alpha=1,beta=
                 bestLength = lengt;
                 bestPath = roads[ant];
             }
-        }
-        console.log(bestLength);   
+        } 
+
+        console.log(bestLength);
     }
 
     return {bestLength,bestPath};
 }
-
-function generateDistanceMatrix(size) {
-    const matrix = new Array(size).fill(0).map(() => new Array(size).fill(0));
-    for (let i = 0; i < size; i++) {
-        for (let j = 0; j < size; j++) {
-            if (i !== j) {
-                matrix[i][j] = Math.floor(Math.random() * 100) + 1;
-            }
-        }
-    }
-    return matrix;
-}
-
-const distances = generateDistanceMatrix(50);
-const result    = solveTSP(distances,100,2,10);
-console.log(result);
