@@ -223,7 +223,7 @@ function runACOGPU() {
     for (let j = 0; j < n; j++)
       distMatrix[i][j] = i === j ? 0 : distance(cities[i], cities[j]);
   
-  const result = solveTSP(distMatrix,4000,1,200,1,2)
+  const result = solveTSP(distMatrix,4000,200,1,2)
 
   draw(result.bestPath, cities);
 

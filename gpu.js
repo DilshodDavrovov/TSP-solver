@@ -8,10 +8,10 @@ function initGPU() {
 
 const gpu = initGPU();
 
-function solveTSP(distances,Ants=1000,courierCount=1,iterations=15,alpha=1,beta=5,evaporationRate=0.5) {
+function solveTSP(distances,Ants=1000,iterations=15,alpha=1,beta=5,evaporationRate=0.5) {
 
     const N = distances.length;
-    const limit = Math.floor(N / courierCount);
+    const limit = Math.floor(N);
 
     const selectCity = gpu.createKernel(function (pozitions,distances, pheromones,visited,curNum) {
         const N = this.constants.N;
@@ -73,7 +73,7 @@ function solveTSP(distances,Ants=1000,courierCount=1,iterations=15,alpha=1,beta=
         };
         return city;
     },{
-        output: [limit+1,Ants*courierCount],
+        output: [limit+1,Ants],
         constants: {Ants},
         pipeline: true,
         immutable: true
@@ -110,11 +110,11 @@ function solveTSP(distances,Ants=1000,courierCount=1,iterations=15,alpha=1,beta=
     let bestLength = Infinity;
 
 
-    let pheromones  = new Array(N*courierCount).fill(0).map(() => new Array(N).fill(0.1));
+    let pheromones  = new Array(N).fill(0).map(() => new Array(N).fill(0.1));
 
     const empty_pozitions   = new Array(Ants).fill(0);
     const empty_visited     = new Array(Ants).fill(0).map(() => {const array = new Array(N).fill(0); array[0] = 1; return array});
-    const empty_roads       = new Array(Ants*courierCount).fill(0).map(() => new Array(limit+1).fill(0));
+    const empty_roads       = new Array(Ants).fill(0).map(() => new Array(limit+1).fill(0));
 
     for (let i = 0; i < iterations; i++) {
         let pozitions     = structuredClone(empty_pozitions);
@@ -162,7 +162,7 @@ function solveTSP(distances,Ants=1000,courierCount=1,iterations=15,alpha=1,beta=
         const antlength  = calcDistances(roads,distances).toArray();
         for (let ant = 0; ant < Ants; ant++) {
             const lengt = antlength[ant];
-            const pheromoneContribution = 1000 / lengt;
+            const pheromoneContribution = 1 / lengt;
             for (let step = 0; step < N+1; step++) {
                 const a = roads[ant][step]; 
                 const b = roads[ant][step+1];
