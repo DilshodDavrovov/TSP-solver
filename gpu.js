@@ -1,14 +1,15 @@
-function initGPU() {
-    try {
-        return new window.GPU.GPU();
-    } catch (e) {
-        return new GPU();
-    }
-}
-
-const gpu = initGPU();
 
 function solveTSP(distances,Ants=1000,iterations=15,alpha=1,beta=5,evaporationRate=0.5) {
+
+    function initGPU() {
+        try {
+            return new window.GPU.GPU();
+        } catch (e) {
+            return new GPU();
+        }
+    }
+
+    const gpu = initGPU();
 
     const N = distances.length;
     const limit = Math.floor(N);
@@ -178,4 +179,21 @@ function solveTSP(distances,Ants=1000,iterations=15,alpha=1,beta=5,evaporationRa
     }
 
     return {bestLength,bestPath};
+}
+
+
+function runACOGPU() {
+
+  const n = cities.length;
+  const distMatrix = Array.from({length: n}, () => Array(n).fill(0));
+  for (let i = 0; i < n; i++)
+    for (let j = 0; j < n; j++)
+      distMatrix[i][j] = i === j ? 0 : distance(cities[i], cities[j]);
+  
+  const result = solveTSP(distMatrix,40,200,1,3)
+
+  draw(result.bestPath, cities);
+
+  document.getElementById("out").textContent =
+    `ACO GPU длина маршрута: ${result.bestLength.toFixed(2)}`;
 }

@@ -11,8 +11,7 @@
 </head>
 <body>
 
-<h2>Решение TSP: Отжиг + Муравьиная колония</h2>
-<button onclick="runSA()">Simulated Annealing</button>
+<h2>Решение TSP: Муравьиная колония</h2>
 <button onclick="runACO()">Ant Colony (ACO)</button>
 <button onclick="runACOGPU()">Ant Colony GPU (ACO)</button>
 <button onclick="drawNewMap()">Generate points</button>
@@ -20,6 +19,8 @@
 <canvas id="tsp" width="600" height="600"></canvas>
 
 <script src="https://unpkg.com/gpu.js@latest/dist/gpu-browser.min.js"></script>
+
+<script src="./cpu.js"></script>
 <script src="./gpu.js"></script>
 
 <script>
@@ -30,7 +31,6 @@ function drawNewMap() {
   draw([], cities); 
 }
 
-  
 function generateCities(n) {
   return Array.from({length: n}, () => ({
     x: Math.random() * 100,
@@ -86,150 +86,7 @@ function draw(path, cities) {
   ctx.stroke();
 }
 
-// ====== Simulated Annealing ======
 
-function simulatedAnnealingTSP(cities) {
-  const n = cities.length;
-  let currentPath = [...Array(n).keys()].sort(() => Math.random() - 0.5);
-  let currentLen = pathLength(currentPath, cities);
-
-  let bestPath = [...currentPath];
-  let bestLen = currentLen;
-
-  let T = 1000000;
-  const T_min = 1;
-  const alpha = 0.999995;
-
-  while (T > T_min) {
-    const i = Math.floor(Math.random() * n);
-    let j = Math.floor(Math.random() * n);
-    while (j === i) j = Math.floor(Math.random() * n);
-
-    const newPath = [...currentPath];
-    [newPath[i], newPath[j]] = [newPath[j], newPath[i]];
-    const newLen = pathLength(newPath, cities);
-    const delta = newLen - currentLen;
-
-    if (delta < 0 || Math.random() < Math.exp(-delta / T)) {
-      currentPath = newPath;
-      currentLen = newLen;
-    }
-
-    if (currentLen < bestLen) {
-      bestPath = [...currentPath];
-      bestLen = currentLen;
-    }
-
-    T *= alpha;
-  }
-
-  return {bestPath, bestLen};
-}
-
-function runSA() {
-  const {bestPath, bestLen} = simulatedAnnealingTSP(cities);
-  draw(bestPath, cities);
-  document.getElementById("out").textContent =
-    `SA длина маршрута: ${bestLen.toFixed(2)}`;
-}
-
-// ====== Ant Colony Optimization (ACO) ======
-function runACO() {
-  const n = cities.length;
-  const ants = 40;
-  const iterations = 200;
-  const decay = 0.5;
-  const alpha = 1;
-  const beta = 3;
-
-  const pheromone = Array.from({length: n}, () => Array(n).fill(1));
-  const distMatrix = Array.from({length: n}, () => Array(n).fill(0));
-  for (let i = 0; i < n; i++)
-    for (let j = 0; j < n; j++)
-      distMatrix[i][j] = i === j ? 1e-10 : distance(cities[i], cities[j]);
-
-  function pickNext(city, visited) {
-    const probs = [];
-    let sum = 0;
-    for (let i = 0; i < n; i++) {
-      if (visited.has(i)) { probs[i] = 0; continue; }
-      const p = Math.pow(pheromone[city][i], alpha) *
-                Math.pow(1/distMatrix[city][i], beta);
-      probs[i] = p;
-      sum += p;
-    }
-    const r = Math.random() * sum;
-    let acc = 0;
-    for (let i = 0; i < n; i++) {
-      acc += probs[i];
-      if (acc >= r) return i;
-    }
-    return probs.indexOf(Math.max(...probs));
-  }
-
-  let bestPath = null;
-  let bestLen = Infinity;
-
-  for (let it = 0; it < iterations; it++) {
-    const paths = [];
-
-    for (let a = 0; a < ants; a++) {
-      const visited = new Set();
-      const path = [];
-      let city = Math.floor(Math.random() * n);
-      path.push(city);
-      visited.add(city);
-
-      while (path.length < n) {
-        city = pickNext(city, visited);
-        path.push(city);
-        visited.add(city);
-      }
-
-      const len = pathLength(path, cities);
-      paths.push({path, len});
-      if (len < bestLen) {
-        bestLen = len;
-        bestPath = path;
-      }
-      paths.push({path, len});
-    }
-
-    for (let i = 0; i < n; i++)
-      for (let j = 0; j < n; j++)
-        pheromone[i][j] *= (1 - decay);
-
-    for (const {path, len} of paths) {
-      const add = 1/len;
-      for (let i = 0; i < path.length; i++) {
-        const c1 = path[i];
-        const c2 = path[(i+1) % path.length];
-        pheromone[c1][c2] += add;
-        pheromone[c2][c1] += add;
-      }
-    }
-  }
-
-  draw(bestPath, cities);
-  document.getElementById("out").textContent =
-    `ACO длина маршрута: ${bestLen.toFixed(2)}`;
-}
-
-function runACOGPU() {
-
-  const n = cities.length;
-  const distMatrix = Array.from({length: n}, () => Array(n).fill(0));
-  for (let i = 0; i < n; i++)
-    for (let j = 0; j < n; j++)
-      distMatrix[i][j] = i === j ? 0 : distance(cities[i], cities[j]);
-  
-  const result = solveTSP(distMatrix,4000,200,1,2)
-
-  draw(result.bestPath, cities);
-
-  document.getElementById("out").textContent =
-    `ACO GPU длина маршрута: ${result.bestLength.toFixed(2)}`;
-}
 
 drawNewMap();
 
